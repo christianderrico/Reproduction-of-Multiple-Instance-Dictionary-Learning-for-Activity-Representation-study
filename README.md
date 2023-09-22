@@ -1,6 +1,6 @@
 # Reproduction-of-Multiple-Instance-Dictionary-Learning-for-Activity-Representation-study
 
-Questo lavoro rappresenta una riproduzione del lavoro effettuato da *Sabanadesan Umakanthan, Simon Denman, Clinton Fookes and Sridha Sridharan, Multiple Instance Dictionary Learning for Activity
+Riproduzione del lavoro effettuato da *Sabanadesan Umakanthan, Simon Denman, Clinton Fookes and Sridha Sridharan, Multiple Instance Dictionary Learning for Activity
 Representation*.
 
 Si realizza un framework per la rappresentazione delle attività per "rinnova" alcuni elementi del classico approccio Bag-Of-Words, considerati "migliorabili" dal team di ricerca.
