@@ -64,7 +64,7 @@ def get_bag_features_and_labels(db, action_class):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    videos_path = r"D:\pythonProject5\all_videos"
+    videos_path = r".\all_videos"
     features_path = os.path.join(videos_path, "descr")
     # path = r"D:\pythonProject5\Hollywood"
     # videos_path = path + "\\all_videos"
