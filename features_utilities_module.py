@@ -1,12 +1,18 @@
 import os
+from abc import abstractmethod, ABC
+
 import cv2
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 
 class DbHelper(object):
 
     def _create_path_name(self, v):
         return os.path.join(self._videos_path, v)
+
+    def _extract_infos(self, videos, prop_key):
+        return [cv2.VideoCapture(v).get(prop_key) for v in videos]
 
     def __init__(self, videos_path, directory_data):
         subfolders = os.listdir(directory_data)
@@ -20,8 +26,11 @@ class DbHelper(object):
         self.path = []
         self.nclass = 0
 
-        videos = [self._create_path_name(v) for v in os.listdir(videos_path) if not os.path.isdir(self._create_path_name(v))]
-        self.nframe_videos = [int(cv2.VideoCapture(v).get(cv2.CAP_PROP_FRAME_COUNT)) for v in videos]
+        videos = self.get_all_videos()
+        self.nframe_videos, self.width_videos, self.height_videos = \
+            [self._extract_infos(videos, k)
+             for k in [cv2.CAP_PROP_FRAME_COUNT, cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT]]
+
         self.id_class2name = {int(i): name for i, name in enumerate(subfolders)}
 
         for i in range(len(subfolders)):
@@ -44,39 +53,77 @@ class DbHelper(object):
                 self.path.append(c_path)
 
         self.label = np.ravel(np.concatenate(self.label))
-        self._get_training_set()
+        self.tr = self.get_training_set()
 
-    def _get_training_set(self):
+    def create_tr(self, idx):
+        tr = np.zeros(len(self.path))
+        tr[idx] = 1
+        return tr
+
+    @abstractmethod
+    def get_all_videos(self):
+        pass
+
+    @abstractmethod
+    def get_training_set(self):
+        pass
+
+
+class KTHHelper(DbHelper, ABC):
+
+    def get_all_videos(self):
+        return [self._create_path_name(v) for v in os.listdir(self._videos_path)
+                if not os.path.isdir(self._create_path_name(v))]
+
+    def get_training_set(self):
         training_set = [2, 3, 5, 6, 7, 8, 9, 10, 22]
         names = ["person" + ("0{}".format(v) if v < 10 else str(v)) for v in training_set]
-        tr = [i for i, path in enumerate(self.path) for name in names if name in path]
-        self.tr = np.zeros(len(self.path))
-        self.tr[tr] = 1
+        id_tr = [i for i, path in enumerate(self.path) if not any(name in os.path.basename(path) for name in names)]
+
+        return self.create_tr(id_tr)
+
+
+class HollywoodHelper(DbHelper, ABC):
+
+    def get_all_videos(self):
+        videos_path = [os.path.join(self._videos_path, d) for d in os.listdir(self._videos_path)]
+        files = [os.listdir(v) for v in videos_path]
+        return [os.path.join(videos_path[i], f) for i in range(len(videos_path)) for f in files[i]]
+
+    def get_training_set(self):
+        tr_idx, _ = train_test_split(range(len(self.label)), test_size=0.3, stratify=self.label, random_state=42)
+        return self.create_tr(tr_idx)
 
 
 def load_features(file):
-    #position = np.genfromtxt(file, comments='#', usecols=(4, 5, 6, 7, 8), dtype=np.int32)
+    import chardet
+    # position = np.genfromtxt(file, comments='#', usecols=(4, 5, 6, 7, 8), dtype=np.int32)
     descriptors = np.genfromtxt(file, comments='#')
 
-    x, *y = descriptors.shape
+    if descriptors.size > 0:
+        x, *y = descriptors.shape
 
-    if not y:
-        descriptors = np.reshape(descriptors, (1, x))
+        if not y:
+            descriptors = np.reshape(descriptors, (1, x))
 
-    # Il formato del dato originale è questo:
-    # point-type x y t sigma2 tau2 detector-confidence dscr-hog(72) dscr-hof(90)
+        # Il formato del dato originale è questo:
+        # point-type x y t sigma2 tau2 detector-confidence dscr-hog(72) dscr-hof(90)
 
-    xyt = descriptors[:, [1, 2, 3]]
-    features = descriptors[:, 7:]
+        xyt = descriptors[:, [1, 2, 3]]
+        features = descriptors[:, 7:]
 
-    xyt = list(enumerate(xyt))
+        xyt = list(enumerate(xyt))
 
-    index = 1
-    t = 2
-    x_coord = 0
-    y_coord = 1
-    ids, elems = zip(*sorted(xyt, key=lambda x: (x[index][t], x[index][x_coord], x[index][y_coord])))
-    xyt = list(elems)
-    features = features[list(ids)]
+        index = 1
+        t = 2
+        x_coord = 0
+        y_coord = 1
+        ids, elems = zip(*sorted(xyt, key=lambda x: (x[index][t], x[index][x_coord], x[index][y_coord])))
+        xyt = list(elems)
+        features = features[list(ids)]
+    else:
+        print("File: ", file)
+        xyt = []
+        features = []
 
     return xyt, features

@@ -40,8 +40,8 @@ def videos_encoding(db, codebooks):
         betas = np.zeros((dSize, total_bins), dtype=object)
         global_bin_id = 0
 
-        frame_width = 160
-        frame_height = 120
+        frame_width = db.width_videos[id_video]
+        frame_height = db.height_videos[id_video]
         n_frames = db.nframe_videos[id_video]
         for n_level in range(pyramid_levels):
             nbins = pyramid_bins[n_level]
@@ -56,9 +56,10 @@ def videos_encoding(db, codebooks):
 
             if temporal[n_level] > 1:
                 timeBin = np.clip(np.array(ts) // temporalUnit, 1, temporal[n_level])
-                idxBin = (timeBin - 1) * temporal[n_level] + idxBin
+                max_w, max_h = 2, 2
+                idxBin = (timeBin - 1) * (max_w * max_h) + idxBin
 
-            print("IDS {0}: {1}".format(n_level, np.unique(idxBin)))
+            print("Ids level {0}: {1}".format(n_level, np.unique(idxBin)))
 
             for local_bin_id in range(nbins):
                 sidxbin = np.where(idxBin == local_bin_id + 1)[0]

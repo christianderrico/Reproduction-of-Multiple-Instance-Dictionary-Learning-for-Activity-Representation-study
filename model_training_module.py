@@ -42,7 +42,7 @@ def extract_codebook(bags, bags_labels, n_class):
     positive_prediction_ids = np.where(y_pred > 0)[0]
     x_pos = x_pos[positive_prediction_ids, :]
 
-    k = 4000
+    k = 60
     codebook = KMeans(n_clusters=k, random_state=0, n_init="auto").fit(x_pos)
     save_model(codebook, n_class)
 
