@@ -8,6 +8,18 @@ from sklearn.svm import LinearSVC
 
 
 def extract_codebook(bags, bags_labels, n_class):
+    """
+    This function solves a multiple instance classification problem to extract discriminative features
+    from videos of a specific class and, then, generates a codebook for that class.
+
+    :param bags: A list of bags-of-features, where each video is represented as a bag according to the MI formulation.
+    :param bags_labels: A list of labels associated with each bag.
+                        Videos of the class of interest are labeled as positive (1),
+                        while others are labeled as negative (0).
+    :param n_class: considered class ID.
+
+    :return: The generated codebook.
+    """
 
     features = np.concatenate(bags)
     feature_labels = np.concatenate([bags_labels[i] * np.ones(len(v)) for i, v in enumerate(bags)])
@@ -50,6 +62,16 @@ def extract_codebook(bags, bags_labels, n_class):
 
 
 def optimize_s(x, y, c, sample_ratio=0.7):
+    """
+    Trains a MI-SVM classifier using negative and the most positive features.
+
+    :param x: Features.
+    :param y: Feature labels.
+    :param c: Feature weights.
+    :param sample_ratio: The ratio of sampling used to gather the most positive features.
+
+    :return: The trained MI-SVM classifier.
+    """
 
     pos_ids = np.where(y > 0)[0]
     neg_ids = np.where(y < 0)[0]
@@ -80,6 +102,14 @@ def optimize_s(x, y, c, sample_ratio=0.7):
 
 
 def features2bags(values, groups):
+    """
+    Groups the given values into bags according to the provided list of groups.
+
+    :param values: The values to be grouped.
+    :param groups: A list indicating the groups to which each value belongs.
+
+    :return: Features grouped into bags.
+    """
     result = []
     start = 0
     for g in groups:
@@ -90,6 +120,17 @@ def features2bags(values, groups):
 
 
 def fix_classes(y, c, bags_size, bag_labels):
+    """
+    Adjusts the bag labels according to the definition of bags: a positive bag can contain at least one positive feature,
+    while a negative bag contains only negative features.
+
+    :param y: Feature labels.
+    :param c: Feature weights.
+    :param bags_size: The bags size.
+    :param bag_labels: Labels of the bags.
+
+    :return: Fixed labels of the bags.
+    """
     result = []
     y2_bags = features2bags(y.copy(), bags_size)
     c_bags = features2bags(c.copy(), bags_size)
@@ -107,7 +148,16 @@ def fix_classes(y, c, bags_size, bag_labels):
 
 
 def optimize_l(x, svmm, groups, bag_labels, sigma=1):
+    """
+    Predicts the feature labels and feature weights.
 
+    :param x: Features.
+    :param svmm: Pre-trained MI-SVM model.
+    :param groups: Bag sizes.
+    :param bag_labels: Bag labels.
+
+    :return: Feature weights and adjusted bag labels.
+    """
     y2 = svmm.predict(x)
     print("Percentage of negative patches: ", len(y2[y2 < 0]) / len(y2))
     c = svmm.decision_function(x)
@@ -119,6 +169,12 @@ def optimize_l(x, svmm, groups, bag_labels, sigma=1):
 
 
 def save_model(model, n_class):
+    """
+    Saves the generated codebook.
+
+    :param model: The codebook (trained KMeans model).
+    :param n_class: The ID of the class.
+    """
     folder = "codebooks/"
     if not os.path.exists(folder):
         os.makedirs(folder)
