@@ -7,25 +7,32 @@ import numpy.linalg
 
 def videos_encoding(db, codebooks):
     """
-    This realizes features encoding + pooling in order to represent videos using BoWs.
-    LLC is used to represent each feature vector as a combination of multiple elements in the codebook, which achieves
-    a better representation than Vector Quantization (VQ) because it captures the correlation between descriptors.
-    Then a spatio-temporal pyramid is used to pool multiple codes from each sub region. Finally, histograms from
-    each subregion are concatenated to form the final descriptor for classification.
+    This realizes features encoding + pooling in order to represent videos using Bag-of-Words (BoWs).
+    LLC is used to represent each feature vector as a combination of multiple elements in the codebook, and
+    a spatio-temporal pyramid is used to pool multiple codes from each subregion.
+
+    :param db: DbHelper object
     :param codebooks: extracted dictionaries
     :return: values associated to encoded videos
     """
-    #mega-codebook creation
+    # concatenation of codebooks
     w = extract_codebooks(codebooks)
-    # The video is first viewed as a whole, then, in the second level it is segmented into 4 sub regions without
+    # The video is first viewed as a whole, then, in the second level it is segmented into 4 subregions without
     # any temporal segmentation.
-    # In the third level each part in the previous level is partitioned into 4 sub-regions in spatially
-    # and 2 sub-regions in temporally
+    # In the third level each part in the previous level is partitioned into 4 subregions in spatially
+    # and 2 subregions in temporally
     pyramid = [1, 2, 2]
     temporal = [1, 1, 2]
     dSize = w.shape[0]
 
     def encoding_video_features(id_video):
+        """
+        Realizes the Spatio-temporal max pooling operation in order to maintain spatial
+        information by pooling in local spatial and temporal bins the LLC encoded features
+
+        :param id_video: ID of the video
+        :return: Pooled representation of a video
+        """
         print("Id video: ", id_video)
         xyt, features = db.xyt[id_video], db.features[id_video]
         # llc coding
@@ -74,13 +81,9 @@ def videos_encoding(db, codebooks):
 
         return betas
 
-    # Numero di worker (thread) nel pool
     num_worker = int(multiprocessing.cpu_count() / 2 - 1)
 
-    # Crea il ThreadPoolExecutor con il numero di worker specificato
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_worker) as executor:
-        # Sottometti i task al ThreadPoolExecutor
-        # Assegna a ogni worker un file video da elaborare
         futures = [executor.submit(encoding_video_features, id_video) for id_video in range(db.vidnum)]
         fv = np.array([f.result() for f in futures])
 
@@ -92,6 +95,16 @@ def extract_codebooks(codebooks):
 
 
 def llc_coding_appr(B, X, knn=5, beta=1e-4):
+    """
+    Performs LLC encoding technique, useful to locally code a video
+    in order to obtain a compact and discriminative representation.
+
+    :param B: Codebook, a set of prototypes or reference point for the LLC encoding
+    :param X: Features video which the encoding will be applied on.
+    :param knn: Number of considered neighbor; for every feature will be selected knn neighbors
+    :param beta: Regularization coefficient
+    :return: A vector of approximated points Y = X * B, LLC representation of the original features.
+    """
     nbase = B.shape[0]
     nframe = X.shape[0]
     D = np.sum(X ** 2, axis=1, keepdims=True) - 2 * np.dot(X, B.T) + np.sum(B ** 2, axis=1)
