@@ -5,12 +5,29 @@ import cv2
 import numpy as np
 from sklearn.model_selection import train_test_split
 
+'''
+This is a singleton object useful for managing videos and the features/information extracted from videos.
+
+Attributes:
+- `videos_path` (str): Path to the folder containing videos.
+- `vidnum` (int): Number of videos.
+- `cname` (list of str): Categories names.
+- `label` (list of int): Class labels for each video.
+- `features` (list): Features extracted by Laptev STIP extractor.
+- `xyt` (list): Spatial and temporal coordinates associated with features.
+- `path` (str): Path to the specific analyzed video.
+- `nclass` (int): Number of different classes.
+'''
+
 
 class DbHelper(object):
 
     def _create_path_name(self, v):
         return os.path.join(self._videos_path, v)
 
+    """
+    This extracts a video specific prop calling VideoCapture from OpenCV
+    """
     def _extract_infos(self, videos, prop_key):
         return [cv2.VideoCapture(v).get(prop_key) for v in videos]
 
@@ -69,18 +86,38 @@ class DbHelper(object):
         pass
 
 
+'''
+This extends DbHelper in order to manage KTH Dataset and its data structure.
+'''
+
+
 class KTHHelper(DbHelper, ABC):
 
     def get_all_videos(self):
         return [self._create_path_name(v) for v in os.listdir(self._videos_path)
                 if not os.path.isdir(self._create_path_name(v))]
 
+
     def get_training_set(self):
-        training_set = [2, 3, 5, 6, 7, 8, 9, 10, 22]
-        names = ["person" + ("0{}".format(v) if v < 10 else str(v)) for v in training_set]
+
+        """
+        For the test phase, subjects with IDs 2, 3, 5, 6, 7, 8, 9, 10, and 22 are selected,
+        as indicated in the paper, while the others are involved in the model training procedure
+        :return: training set
+        """
+        test_set = [2, 3, 5, 6, 7, 8, 9, 10, 22]
+        names = ["person" + ("0{}".format(v) if v < 10 else str(v)) for v in test_set]
         id_tr = [i for i, path in enumerate(self.path) if not any(name in os.path.basename(path) for name in names)]
 
         return self.create_tr(id_tr)
+
+
+"""
+    For completeness, code for the Hollywood2 dataset has been prepared, 
+    but the STIP extractor hasn't been able to gather sufficient information from those videos; 
+    therefore, it hasn't been possible to work with this dataset 
+    and apply the same approach used with the KTH dataset.
+"""
 
 
 class HollywoodHelper(DbHelper, ABC):
@@ -96,6 +133,18 @@ class HollywoodHelper(DbHelper, ABC):
 
 
 def load_features(file):
+    """
+    Load features from files produced by the STIP extractor at the end of the extraction procedure.
+
+    These features are stored in a .txt file that contains information about the frame number
+    and spatial location of the keypoint, along with the concatenated HOG/HOF descriptors.
+
+    :param file: The file of interest containing all the information (str).
+
+    Returns:
+        xyt: spatial-temporal coordinates
+        features: HOG/HOF features
+    """
     import chardet
     # position = np.genfromtxt(file, comments='#', usecols=(4, 5, 6, 7, 8), dtype=np.int32)
     descriptors = np.genfromtxt(file, comments='#')
